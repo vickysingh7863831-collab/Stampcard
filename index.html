@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Digital Stamp Card</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#dcebe8;--card:#ffffff;--ink:#12323a;--muted:#5b7479;--stamp:#f2a33a;--stampInk:#3a2300;--empty:#e8f0ee;--line:#b9d0cc;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f2a30;--card:#173b43;--ink:#eaf5f3;--muted:#9bb9bd;--empty:#0f2a30;--line:#2c5660}}
+:root[data-theme="dark"]{--bg:#0f2a30;--card:#173b43;--ink:#eaf5f3;--muted:#9bb9bd;--empty:#0f2a30;--line:#2c5660}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Bricolage Grotesque',system-ui,-apple-system,'Segoe UI',sans-serif;min-height:100vh}
+main{max-width:420px;margin:0 auto;padding:24px 18px 40px}
+h1{font-size:30px;line-height:1.1;margin:0 0 4px;font-weight:800;letter-spacing:-.5px}
+.sub{color:var(--muted);margin:0 0 20px;font-size:15px}
+.card{background:var(--card);border-radius:22px;padding:22px 18px;border:2px dashed var(--line)}
+.row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px}
+.count{font-weight:800;font-size:20px}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.s{aspect-ratio:1;border-radius:50%;background:var(--empty);border:2px solid var(--line);display:grid;place-items:center;color:var(--muted);font-weight:600;font-size:15px;transition:transform .25s,background .25s}
+.s.on{background:var(--stamp);border-color:var(--stamp);color:var(--stampInk);transform:rotate(-8deg) scale(1.04)}
+.s svg{width:56%;height:56%}
+.goal{margin:18px 0 0;font-size:15px;color:var(--muted)}
+.goal b{color:var(--ink)}
+button{font:inherit;font-weight:600;border:0;border-radius:14px;padding:15px 18px;width:100%;cursor:pointer;margin-top:16px;background:var(--ink);color:var(--bg);font-size:16px}
+button:disabled{opacity:.6}
+button.link{background:none;color:var(--muted);font-size:14px;font-weight:400;text-decoration:underline;margin-top:10px;padding:8px}
+button:focus-visible,input:focus-visible{outline:3px solid var(--stamp);outline-offset:2px}
+input{font:inherit;width:100%;padding:14px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--ink);font-size:18px;text-align:center;margin-top:10px}
+input.pin{letter-spacing:6px}
+label{font-size:14px;color:var(--muted)}
+.panel{display:none;margin-top:14px}
+.panel.show{display:block}
+.msg{font-size:14px;margin:10px 0 0;min-height:18px}
+.msg.err{color:#d2453b}
+.msg.ok{color:#2f9e6b}
+.reward{text-align:center;margin-top:16px}
+.reward .big{font-size:24px;font-weight:800;margin-bottom:4px}
+.hide{display:none}
+@media (prefers-reduced-motion:reduce){.s{transition:none}}
+</style>
+</head>
+<body>
+<main>
+<h1 id="title">Stamp Card</h1>
+<p class="sub" id="sub"></p>
+
+<section class="card" id="noShop" style="display:none">
+  <p style="margin:0">Ye page cafe ke QR code se kholein.</p>
+</section>
+
+<section class="card" id="phoneBox" style="display:none">
+  <label for="phone">Apna mobile number daalein</label>
+  <input id="phone" type="tel" inputmode="numeric" maxlength="10" placeholder="10 digit number" autocomplete="tel">
+  <p class="msg err" id="phoneErr"></p>
+  <button id="phoneBtn">Mera card dekho</button>
+</section>
+
+<section class="card" id="cardBox" style="display:none" aria-live="polite">
+  <div class="row"><span>Aapka stamp card</span><span class="count" id="count"></span></div>
+  <div class="grid" id="grid"></div>
+  <p class="goal" id="goal"></p>
+
+  <div id="stampArea">
+    <button id="stampBtn">Stamp lagwao (staff ke liye)</button>
+    <div class="panel" id="pinPanel">
+      <label for="pin">Cafe staff PIN daalein</label>
+      <input id="pin" class="pin" type="tel" inputmode="numeric" maxlength="6" autocomplete="off">
+      <button id="pinOk">Confirm</button>
+    </div>
+  </div>
+
+  <div class="reward hide" id="rewardArea">
+    <div class="big" id="rewardText"></div>
+    <div style="color:var(--muted);font-size:15px">Ye screen counter par staff ko dikhao</div>
+    <button id="redeemBtn">Reward do (staff ke liye)</button>
+    <div class="panel" id="redeemPanel">
+      <label for="pin2">Cafe staff PIN daalein</label>
+      <input id="pin2" class="pin" type="tel" inputmode="numeric" maxlength="6" autocomplete="off">
+      <button id="redeemOk">Confirm</button>
+    </div>
+  </div>
+
+  <p class="msg" id="msg"></p>
+  <button class="link" id="changePhone">Number badlo</button>
+</section>
+</main>
+
+<script>
+(function(){
+  var SB_URL="https://znqtoxrxxihxvtknbybx.supabase.co";
+  var SB_KEY="sb_publishable_8fgp-Hd4ZiBU3tECDd7_-Q_H4R_T8BN";
+  var $=function(id){return document.getElementById(id)};
+  var slug=new URLSearchParams(location.search).get("shop")||"";
+  var phone="", card=null;
+  var cup='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h13v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M8 3v2M12 3v2"/></svg>';
+  var ERR={wrong_pin:"PIN galat hai.",too_soon:"Stamp abhi lag chuka hai. 12 ghante baad dobara aayein.",card_full:"Card poora hai. Pehle reward lein.",shop_not_found:"Cafe nahi mila. QR code dobara scan karein.",not_enough_stamps:"Abhi stamp kam hain."};
+
+  function rpc(fn,args){
+    return fetch(SB_URL+"/rest/v1/rpc/"+fn,{method:"POST",headers:{"Content-Type":"application/json",apikey:SB_KEY},body:JSON.stringify(args)})
+      .then(function(r){return r.json()});
+  }
+  function msg(t,cls){var m=$("msg");m.textContent=t||"";m.className="msg "+(cls||"")}
+  function show(id,on){$(id).style.display=on?"block":"none"}
+
+  function render(){
+    $("title").textContent=card.shop_name;
+    $("sub").textContent="Har visit par 1 stamp. "+card.stamps_needed+" stamp = "+card.reward+".";
+    var g=$("grid");g.innerHTML="";
+    for(var i=1;i<=card.stamps_needed;i++){
+      var d=document.createElement("div");
+      d.className="s"+(i<=card.stamps?" on":"");
+      d.innerHTML=i<=card.stamps?cup:i;
+      g.appendChild(d);
+    }
+    $("count").textContent=card.stamps+" / "+card.stamps_needed;
+    var full=card.stamps>=card.stamps_needed;
+    $("goal").innerHTML=full?"Card poora ho gaya.":"<b>"+(card.stamps_needed-card.stamps)+" stamp aur</b> aur "+card.reward+" aapki.";
+    $("stampArea").style.display=full?"none":"block";
+    $("rewardArea").classList.toggle("hide",!full);
+    $("rewardText").textContent=card.reward+" mil gayi!";
+    $("pinPanel").classList.remove("show");$("redeemPanel").classList.remove("show");
+    $("stampBtn").style.display="block";$("redeemBtn").style.display="block";
+  }
+
+  function loadCard(){
+    show("phoneBox",false);
+    rpc("get_card",{p_slug:slug,p_phone:phone}).then(function(r){
+      if(r.error||!r.shop_name){
+        show("cardBox",false);show("noShop",true);
+        $("noShop").firstElementChild.textContent=ERR[r.error]||"Kuch gadbad hui. Dobara try karein.";
+        return;
+      }
+      card=r;show("cardBox",true);render();
+    }).catch(function(){
+      show("noShop",true);$("noShop").firstElementChild.textContent="Internet check karein aur dobara try karein.";
+    });
+  }
+
+  $("phoneBtn").onclick=function(){
+    var v=$("phone").value.replace(/\D/g,"");
+    if(v.length!==10){$("phoneErr").textContent="10 digit ka number daalein.";return}
+    phone=v;
+    try{localStorage.setItem("stamp-phone",v)}catch(e){}
+    loadCard();
+  };
+  $("changePhone").onclick=function(){
+    try{localStorage.removeItem("stamp-phone")}catch(e){}
+    phone="";show("cardBox",false);show("phoneBox",true);msg("");
+  };
+  $("stampBtn").onclick=function(){$("stampBtn").style.display="none";$("pinPanel").classList.add("show");$("pin").focus()};
+  $("redeemBtn").onclick=function(){$("redeemBtn").style.display="none";$("redeemPanel").classList.add("show");$("pin2").focus()};
+
+  function act(fn,pinId,btnId,okText){
+    var btn=$(btnId);btn.disabled=true;
+    rpc(fn,{p_slug:slug,p_phone:phone,p_pin:$(pinId).value}).then(function(r){
+      btn.disabled=false;$(pinId).value="";
+      if(r.error){msg(ERR[r.error]||"Kuch gadbad hui.","err");return}
+      msg(okText,"ok");loadCard();
+    }).catch(function(){btn.disabled=false;msg("Internet check karein.","err")});
+  }
+  $("pinOk").onclick=function(){act("add_stamp","pin","pinOk","Stamp lag gaya!")};
+  $("redeemOk").onclick=function(){act("redeem_reward","pin2","redeemOk","Reward de diya gaya. Naya card shuru.")};
+
+  if(!slug){show("noShop",true);return}
+  var saved="";try{saved=localStorage.getItem("stamp-phone")||""}catch(e){}
+  if(saved.length===10){phone=saved;loadCard()}else{show("phoneBox",true)}
+})();
+</script>
+</body>
+</html>
